@@ -1,0 +1,107 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+@section Scripts
+    {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+
+    <script type="text/javascript">
+        $(document).ready(() => {
+            //configureLogging(signalR.LogLevel.Information)
+            var connection = new signalR.HubConnectionBuilder().withAutomaticReconnect([1000, 1000, 1000, 3000]).withUrl("https://localhost:7216/MyHub").build();
+
+            statusShow();
+            Start();
+            function statusShow() {
+                $("#conStatus").text(connection.connectionState);
+               // $("#clientCount").text(clientCount);
+            }
+
+            function Start() {
+                connection.start().then(() => {
+                    statusShow();
+                    connection.invoke("GetNames");
+
+                }).catch((err) => {
+                    console.log(err)
+                    setTimeout(() => Start(), 2000)
+                });
+            }
+
+            statusShow();
+
+            connection.onreconnecting(err => {
+                //  $("#loading").show();
+                statusShow();
+                console.log("onreconnection:" + err);
+            });
+
+            connection.onreconnected(connectionId => {
+                // $("#loading").hide();
+                statusShow();
+                console.log("connectionId:" + connectionId);
+            });
+
+            connection.onclose(() => {
+                // $("#loading").hide();
+                statusShow();
+                Start();
+            });
+
+            connection.on("ReciveClientCount", (clientCount) => {
+                console.log(clientCount);
+               $("#clientCount").text(clientCount);
+               // $("#clientCount").append(`<li class="list-group-item">${clientCount}</li>`)
+            })
+
+            connection.on("Notify",(countText)=>{
+                $("#notify").html(`<div class="alert alert-success">${countText}</div>`)
+            })
+
+            connection.on("Error",(errortext)=>{
+                
+                alert(errortext);
+
+            })
+
+            connection.on("ReceiveNames",(names)=>{
+                $("#namesList").empty();
+                names.forEach((item,index)=>{
+                    $("#namesList").append(`<li class="list-group-item">${item}</li>`);
+                })
+            })
+            //Clicks
+            $("#btnNameSave").click(() => {
+                connection.invoke("SendName", $("#txtName").val()).catch((err) =>
+                    console.log(err))
+            })
+            //on methods
+            connection.on("ReceiveName", (name) => {
+                $("#namesList").append(`<li class="list-group-item">${name}</li>`)
+            })
+        })
+
+
+    </script>
+}
+
+    <div class="row">
+
+        <div class="col-md-8 offset-2">
+            <input class="form-control" type="text" id="txtName" />
+            <hr />
+            <button class="btn btn-primary" id="btnNameSave">Kaydet</button>
+            <div class="alert alert-info">
+
+                Bağlantı Durumu:<strong id="conStatus"></strong>,
+                Client Sayısı :<strong id="clientCount"></strong>
+
+            </div>
+            <div class="clearfix"></div>
+            <div id="notify"></div>
+        </div>
+    </div>
+    <div class="col-md-8 offset-2">
+        <ul class="list-group" id="namesList"></ul>
+    </div>
+          
